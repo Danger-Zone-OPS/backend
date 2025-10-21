@@ -1,7 +1,8 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
-import type { RawData } from "ws";
+import { setupRoutes } from "./routes.js";
+import { addClient } from "./websocket.js";
 
 const fastify = Fastify({
   logger: true,
@@ -9,24 +10,22 @@ const fastify = Fastify({
 
 await fastify.register(websocket);
 
+await setupRoutes(fastify);
+
 fastify.get("/", async () => {
-  return { message: "Hello from Fastify!" };
+  return { message: "Danger Zone API - Online", version: "1.0.0" };
 });
 
 fastify.register(async function (fastify) {
   fastify.get("/ws", { websocket: true }, (socket) => {
-    socket.on("message", (message: RawData) => {
-      // Echo the message back
-      const data = message.toString();
-      fastify.log.info(`Received: ${data}`);
-      socket.send(`Echo: ${data}`);
-    });
+    addClient(socket);
 
-    socket.on("close", () => {
-      fastify.log.info("Client disconnected");
-    });
-
-    socket.send("WebSocket connection established!");
+    socket.send(
+      JSON.stringify({
+        type: "connection",
+        message: "Connected to Danger Zone real-time updates",
+      })
+    );
   });
 });
 
